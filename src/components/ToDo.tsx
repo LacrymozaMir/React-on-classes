@@ -1,61 +1,108 @@
 import { Component } from "react";
 import { ITask } from "../types/ToDo";
 import ToDoList from "./ToDoList";
-import { fetchTasks } from "../api/toDo";
+import { addTaskAPI, deleteTaskAPI, fetchTasksAPI, updateTaskAPI } from "../api/toDo";
+import ToDoForm from "./ToDoForm";
+import ToDoControlPanel from "./ToDoControlPanel";
+import { toASCII } from "punycode";
 
 interface ToDoState {
     tasks: ITask[];
 }
 
-interface ToDoProps {
-
-}
-
-export async function http(request: string): Promise<any> {
-    const response = await fetch(request);
-    const body = await response.json();
-    return body;
-}
-
-
+interface ToDoProps {}
 
 export class ToDo extends Component<ToDoProps, ToDoState> {
     constructor(props: ToDoProps) {
         super(props);
 
         this.state = {
-            tasks: [
-                {id: 1, title: 'dasda', completed: true, userId: 1},
-                {id: 2, title: 'dasda 2', completed: true, userId: 5},
-                {id: 3, title: 'dasda 3', completed: false, userId: 2},
-            ],
+            tasks: [],
         }
     }
 
     componentDidMount(): void {
-        this.addTask();
         console.log('ToDo is mount!');
 
-        fetchTasks().then(resp => this.setState(({tasks: resp})));
+        fetchTasksAPI().then(resp => this.setState(({tasks: resp})));
     }
 
     componentWillUnmount(): void {
-        console.log('unmount ToDo!')
+        console.log('unmount ToDo!');
     }
 
-    addTask() {
-        this.setState(({tasks}) => ({
-            tasks: [...tasks, {id: 4, title: '121212', completed: true, userId: 1}]
+    addTask = (newTask: ITask): void => {
+        this.setState(({tasks}) => ({tasks: [...tasks, newTask]}));
+
+        addTaskAPI(newTask); // fake request
+    }
+
+    deleteTask = (id: number): void => {
+        this.setState(({tasks}) => ({tasks: tasks.filter(t => t.id !== id)}));
+
+        deleteTaskAPI(id); // fake request
+    }
+
+    completeTask = (id: number): void => { 
+        this.setState(prevState => ({ 
+            tasks: prevState.tasks.map(task =>
+                task.id === id 
+                ? { ...task, completed: !task.completed } 
+                : task
+            )
+        })); 
+    }
+
+    editTask = (id: number, value: string): void => {
+        this.setState(prevState => ({ 
+            tasks: prevState.tasks.map(task =>
+                task.id === id 
+                ? { ...task, title: value } 
+                : task
+            )
+        })); 
+
+        const task = this.state.tasks.find(t => t.id === id);
+        if (task) {
+            updateTaskAPI(task);
+        }
+    }
+
+    completeAllTasks = (): void => {
+        this.setState(prevState => ({
+            tasks: prevState.tasks.map(task => (
+                task.completed 
+                ? task 
+                : {
+                    ...task,
+                    completed: true
+                    }))
         }));
     }
 
+    deleteAllTasks = (): void => {
+        this.setState(({tasks}) => ({tasks: tasks.filter(t => t.completed === false)}));
+    }
+
     render() {
+
         return (
             <section>
-                <ToDoList tasks={this.state.tasks}/>
+                <ToDoControlPanel 
+                    deleteAllTasks={this.deleteAllTasks} 
+                    completeAllTasks={this.completeAllTasks}
+                />
+                <ToDoForm addTask={this.addTask}/>
+                {this.state.tasks.length
+                    ? <ToDoList 
+                        editTask={this.editTask} 
+                        completeTask={this.completeTask} 
+                        deleteTask={this.deleteTask} 
+                        tasks={this.state.tasks}
+                       />
+                    : <div>Постов нет!</div>
+                }
             </section>
         )
     }
-
-
 }
